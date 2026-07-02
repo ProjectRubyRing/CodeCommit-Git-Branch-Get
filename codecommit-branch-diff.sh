@@ -508,4 +508,154 @@ render_recent() {
   done
 }
 
-# --------------------
+# ---------------------------------------------------------------------
+# 単一コミットモード: --commit で指定した 1 コミットの差分を表示する。
+# ---------------------------------------------------------------------------
+render_single() {
+  local full_sha
+  full_sha="$(g rev-parse --verify --quiet "${COMMIT_SHA}^{commit}")" \
+    || die "指定したコミットが見つかりません: ${COMMIT_SHA}（--full-clone で全履歴を取得すると解決する場合があります）"
+
+  render_report_header
+  render_commit "${full_sha}" 1 1
+}
+
+# ---------------------------------------------------------------------------
+# 範囲モード: --from <ref> .. --to <ref>（省略時はブランチ先頭）の差分を表示する。
+#   全体サマリ + 全体差分 + 区間内の各コミット詳細（古い順）を出力する。
+# ---------------------------------------------------------------------------
+render_range() {
+  local to_ref="${TO_REF:-origin/${BRANCH_NAME}}"
+  local to_disp="${TO_REF:-origin/${BRANCH_NAME}(先頭)}"
+
+  g rev-parse --verify --quiet "${FROM_REF}^{commit}" >/dev/null \
+    || die "--from の参照が見つかりません: ${FROM_REF}"
+  g rev-parse --verify --quiet "${to_ref}^{commit}" >/dev/null \
+    || die "--to の参照が見つかりません: ${to_ref}"
+
+  local -a shas=()
+  mapfile -t shas < <(g rev-list --reverse "${FROM_REF}..${to_ref}") \
+    || die "範囲内のコミット一覧の取得に失敗しました (${FROM_REF}..${to_ref})。"
+
+  render_report_header
+
+  # --- 区間内コミット一覧(目次 / 古い順) -----------------------------------
+  printf '● コミット一覧(%s .. %s / 古い順)\n' "${FROM_REF}" "${to_disp}"
+  hr_thin
+  if [ "${#shas[@]}" -ge 1 ]; then
+    g log --reverse \
+        --date=format:'%Y-%m-%d %H:%M' \
+        --format='  %h  %ad  %an  %s' \
+        "${FROM_REF}..${to_ref}"
+  else
+    printf '  (この範囲に差分コミットはありません)\n'
+  fi
+  printf '\n\n'
+
+  # --- 全体差分サマリ ------------------------------------------------------
+  hr
+  printf '■ 全体差分(%s .. %s)\n' "${FROM_REF}" "${to_disp}"
+  hr
+  printf '\n'
+  hr_thin
+  printf '● 変更サマリ\n'
+  hr_thin
+  local shortstat
+  shortstat="$(g diff --shortstat -M -C "${FROM_REF}" "${to_ref}" | sed 's/^[[:space:]]*//')"
+  printf '  %s\n' "${shortstat:-(差分なし)}"
+
+  printf '\n'
+  hr_thin
+  printf '● ファイル別変更量(グラフ)\n'
+  hr_thin
+  g diff --stat=100 -M -C ${GIT_COLOR_OPT} "${FROM_REF}" "${to_ref}"
+
+  # --- 全体詳細差分(patch) -------------------------------------------------
+  if [ "${STAT_ONLY}" != "true" ]; then
+    printf '\n'
+    hr_thin
+    printf '● 全体詳細差分(patch / 文脈 %s 行 / rename・copy 検出あり)\n' "${CONTEXT_LINES}"
+    hr_thin
+    local word_args=()
+    if [ "${WORD_DIFF}" = "true" ]; then
+      case "${GIT_COLOR_OPT}" in
+        --color=always) word_args=(--word-diff=color) ;;
+        *)              word_args=(--word-diff=plain) ;;
+      esac
+    fi
+    g diff --patch -M -C \
+        --unified="${CONTEXT_LINES}" \
+        ${GIT_COLOR_OPT} "${word_args[@]+"${word_args[@]}"}" \
+        "${FROM_REF}" "${to_ref}"
+  fi
+  printf '\n\n'
+
+  # --- 区間内の各コミット詳細(古い順) --------------------------------------
+  if [ "${#shas[@]}" -ge 1 ]; then
+    hr
+    printf '■ 区間内コミットの個別詳細(古い順)\n'
+    hr
+    printf '\n'
+    local total="${#shas[@]}" i=0 sha
+    for sha in "${shas[@]}"; do
+      i=$((i + 1))
+      render_commit "${sha}" "${i}" "${total}"
+    done
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# 動作モードに応じてレポート本体を標準出力へ生成する。
+# ---------------------------------------------------------------------------
+render_report() {
+  case "$MODE" in
+    recent) render_recent ;;
+    single) render_single ;;
+    range)  render_range ;;
+    *)      die "内部エラー: 不明なモード: ${MODE}" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# ページャ(less -R)を使える状況かどうかを判定する。
+#   - --no-pager 指定なし かつ 標準出力が端末 かつ less が存在する場合のみ true。
+# ---------------------------------------------------------------------------
+_can_use_pager() {
+  [ "$USE_PAGER" = "true" ] && [ -t 1 ] && command -v less >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# レポートを画面(必要ならページャ)と、指定があればファイルへ出力する。
+#   - --output-file 指定時は tee で画面とファイルの両方へ出力する。
+#   - 色付き(--color=always 等)の内容を less で表示するため less -R を用いる。
+# ---------------------------------------------------------------------------
+emit_report() {
+  if [ -n "$OUTPUT_FILE" ]; then
+    if _can_use_pager; then
+      render_report | tee "$OUTPUT_FILE" | less -R
+    else
+      render_report | tee "$OUTPUT_FILE"
+    fi
+    log_info "レポートをファイルに保存しました: ${OUTPUT_FILE}"
+  else
+    if _can_use_pager; then
+      render_report | less -R
+    else
+      render_report
+    fi
+  fi
+}
+
+# ===========================================================================
+# ステップ4: clone してレポートを生成・表示する
+# ===========================================================================
+clone_branch
+
+if [ "$DRY_RUN" = "true" ]; then
+  log_info "dry-run モードのため、clone・差分の解析/表示は行いません。"
+  exit 0
+fi
+
+emit_report
+
+log_info "完了しました。"
