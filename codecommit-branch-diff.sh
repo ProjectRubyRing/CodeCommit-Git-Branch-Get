@@ -22,10 +22,16 @@
 #
 # 使い方:
 #   ./codecommit-branch-diff.sh -r <リポジトリ名> -b <ブランチ名> [オプション]
+#   ./codecommit-branch-diff.sh -r <リポジトリ名> -B <ディレクトリ> [オプション]
 #
 # オプション:
 #   -r, --repository <name>   対象の CodeCommit リポジトリ名(必須。--repo-url 指定時は任意)。
-#   -b, --branch <name>       対象ブランチ名(必須)。
+#   -b, --branch <name>       対象ブランチ名(-B/--branch-dir を使わない場合は必須)。
+#   -B, --branch-dir <dir>    ブランチ名を直接指定する代わりに、指定ディレクトリ配下の
+#                             git リポジトリ(.git が存在するディレクトリ)を探索し、
+#                             各リポジトリのチェックアウト中ブランチを選択肢として表示、
+#                             選択したブランチを対象ブランチとして使用する。
+#                             (-b/--branch とは同時に指定できません)
 #   -c, --commit <sha>        単一コミットモード: 指定コミットの差分のみ表示。
 #       --from <ref>          範囲モード: 比較の起点(古い側)のコミット/参照。
 #       --to <ref>            範囲モード: 比較の終点(新しい側)。省略時はブランチ先頭。
@@ -66,6 +72,9 @@
 #   # 直近3コミットのみ・文脈行数10行で表示
 #   ./codecommit-branch-diff.sh -r my-repo -b develop -N 3 --context 10
 #
+#   # ~/work 配下のローカルリポジトリのチェックアウト中ブランチから対話選択して表示
+#   ./codecommit-branch-diff.sh -r my-repo -B ~/work --region ap-northeast-1
+#
 #   # 特定コミット1件の差分を表示
 #   ./codecommit-branch-diff.sh -r my-repo -b main -c 1a2b3c4d
 #
@@ -91,6 +100,7 @@ require_cmd git "git をインストールしてください (RHEL9: sudo dnf in
 # ---- オプション解析 --------------------------------------------------------
 REPOSITORY_NAME="${CODECOMMIT_REPOSITORY:-}"
 BRANCH_NAME=""
+BRANCH_SELECT_DIR=""
 COMMIT_SHA=""
 FROM_REF=""
 TO_REF=""
@@ -114,6 +124,8 @@ while [ "$#" -gt 0 ]; do
     --repository=*)         REPOSITORY_NAME="${1#*=}"; shift ;;
     -b|--branch)            BRANCH_NAME="${2:?-b/--branch にはブランチ名を指定してください}"; shift 2 ;;
     --branch=*)             BRANCH_NAME="${1#*=}"; shift ;;
+    -B|--branch-dir)        BRANCH_SELECT_DIR="${2:?-B/--branch-dir にはディレクトリを指定してください}"; shift 2 ;;
+    --branch-dir=*)         BRANCH_SELECT_DIR="${1#*=}"; shift ;;
     -c|--commit)            COMMIT_SHA="${2:?-c/--commit にはコミットSHAを指定してください}"; shift 2 ;;
     --commit=*)             COMMIT_SHA="${1#*=}"; shift ;;
     --from)                 FROM_REF="${2:?--from には起点のコミット/参照を指定してください}"; shift 2 ;;
@@ -155,7 +167,17 @@ if [ -n "$REGION" ]; then
 fi
 
 # ---- 入力の検証 ------------------------------------------------------------
-[ -n "$BRANCH_NAME" ] || die "ブランチ名が指定されていません。-b <ブランチ名> で指定してください。"
+if [ -n "$BRANCH_NAME" ] && [ -n "$BRANCH_SELECT_DIR" ]; then
+  die "-b/--branch と -B/--branch-dir は同時に指定できません。"
+fi
+
+# -B/--branch-dir 指定時: 指定ディレクトリ配下の git リポジトリから
+# チェックアウト中ブランチを対話選択し、-b の代わりに使用する。
+if [ -n "$BRANCH_SELECT_DIR" ]; then
+  BRANCH_NAME="$(select_branch_from_dir "$BRANCH_SELECT_DIR")" || exit 1
+fi
+
+[ -n "$BRANCH_NAME" ] || die "ブランチ名が指定されていません。-b <ブランチ名> または -B <ディレクトリ> で指定してください。"
 
 if [ -z "$REPO_URL" ] && [ -z "$REPOSITORY_NAME" ]; then
   die "リポジトリを特定できません。-r <リポジトリ名> もしくは --repo-url <URL> を指定してください。"
@@ -301,7 +323,7 @@ fi
 log_info "=== 実行内容 ==="
 log_info "  リポジトリ        : ${PERM_REPO_NAME}"
 log_info "  clone URL         : ${REPO_URL}"
-log_info "  ブランチ          : ${BRANCH_NAME}"
+log_info "  ブランチ          : ${BRANCH_NAME}$([ -n "$BRANCH_SELECT_DIR" ] && echo " (${BRANCH_SELECT_DIR} 配下から選択)")"
 case "$MODE" in
   recent) log_info "  モード            : 直近 ${MAX_COUNT} コミットの差分表示" ;;
   single) log_info "  モード            : 単一コミット差分表示 (commit: ${COMMIT_SHA})" ;;

@@ -12,10 +12,16 @@
 #
 # 使い方:
 #   ./codecommit-branch-zip.sh -r <リポジトリ名> -b <ブランチ名> -o <保存先ディレクトリ> [オプション]
+#   ./codecommit-branch-zip.sh -r <リポジトリ名> -B <ディレクトリ> -o <保存先ディレクトリ> [オプション]
 #
 # オプション:
 #   -r, --repository <name>   対象の CodeCommit リポジトリ名(必須。--repo-url 指定時は任意)。
-#   -b, --branch <name>       ZIP 化するブランチ名(必須)。
+#   -b, --branch <name>       ZIP 化するブランチ名(-B/--branch-dir を使わない場合は必須)。
+#   -B, --branch-dir <dir>    ブランチ名を直接指定する代わりに、指定ディレクトリ配下の
+#                             git リポジトリ(.git が存在するディレクトリ)を探索し、
+#                             各リポジトリのチェックアウト中ブランチを選択肢として表示、
+#                             選択したブランチを ZIP 化の対象ブランチとして使用する。
+#                             (-b/--branch とは同時に指定できません)
 #   -o, --output-dir <dir>    ZIP の保存先ディレクトリ(必須。無ければ作成する)。
 #       --zip-name <name>     出力する ZIP ファイル名。
 #                             (既定: <repo>_<branch>_<YYYYmmdd-HHMMSS>.zip)
@@ -45,6 +51,8 @@
 # 例:
 #   ./codecommit-branch-zip.sh -r my-repo -b main -o ./out --region ap-northeast-1
 #   ./codecommit-branch-zip.sh -r my-repo -b develop -o /tmp/zips --zip-name develop.zip
+#   # ~/work 配下のローカルリポジトリのチェックアウト中ブランチから対話選択して ZIP 化
+#   ./codecommit-branch-zip.sh -r my-repo -B ~/work -o ./out --region ap-northeast-1
 #   ./codecommit-branch-zip.sh -r my-repo -b main -o ./out \
 #       --auto-assume-role --assume-role-script /opt/team/assume_role.sh
 #   ./codecommit-branch-zip.sh -r my-repo -b main -o ./out --dry-run
@@ -63,6 +71,7 @@ require_cmd git "git をインストールしてください"
 # ---- オプション解析 --------------------------------------------------------
 REPOSITORY_NAME="${CODECOMMIT_REPOSITORY:-}"
 BRANCH_NAME=""
+BRANCH_SELECT_DIR=""
 OUTPUT_DIR=""
 ZIP_NAME=""
 REPO_URL=""
@@ -78,6 +87,8 @@ while [ "$#" -gt 0 ]; do
     --repository=*)         REPOSITORY_NAME="${1#*=}"; shift ;;
     -b|--branch)            BRANCH_NAME="${2:?-b/--branch にはブランチ名を指定してください}"; shift 2 ;;
     --branch=*)             BRANCH_NAME="${1#*=}"; shift ;;
+    -B|--branch-dir)        BRANCH_SELECT_DIR="${2:?-B/--branch-dir にはディレクトリを指定してください}"; shift 2 ;;
+    --branch-dir=*)         BRANCH_SELECT_DIR="${1#*=}"; shift ;;
     -o|--output-dir)        OUTPUT_DIR="${2:?-o/--output-dir には保存先ディレクトリを指定してください}"; shift 2 ;;
     --output-dir=*)         OUTPUT_DIR="${1#*=}"; shift ;;
     --zip-name)             ZIP_NAME="${2:?--zip-name にはファイル名を指定してください}"; shift 2 ;;
@@ -106,7 +117,17 @@ if [ -n "$REGION" ]; then
 fi
 
 # ---- 入力の検証 ------------------------------------------------------------
-[ -n "$BRANCH_NAME" ] || die "ブランチ名が指定されていません。-b <ブランチ名> で指定してください。"
+if [ -n "$BRANCH_NAME" ] && [ -n "$BRANCH_SELECT_DIR" ]; then
+  die "-b/--branch と -B/--branch-dir は同時に指定できません。"
+fi
+
+# -B/--branch-dir 指定時: 指定ディレクトリ配下の git リポジトリから
+# チェックアウト中ブランチを対話選択し、-b の代わりに使用する。
+if [ -n "$BRANCH_SELECT_DIR" ]; then
+  BRANCH_NAME="$(select_branch_from_dir "$BRANCH_SELECT_DIR")" || exit 1
+fi
+
+[ -n "$BRANCH_NAME" ] || die "ブランチ名が指定されていません。-b <ブランチ名> または -B <ディレクトリ> で指定してください。"
 [ -n "$OUTPUT_DIR" ]  || die "保存先ディレクトリが指定されていません。-o <ディレクトリ> で指定してください。"
 
 if [ -z "$REPO_URL" ] && [ -z "$REPOSITORY_NAME" ]; then
@@ -224,7 +245,7 @@ fi
 log_info "=== 実行内容 ==="
 log_info "  リポジトリ      : ${PERM_REPO_NAME}"
 log_info "  clone URL       : ${REPO_URL}"
-log_info "  ブランチ        : ${BRANCH_NAME}"
+log_info "  ブランチ        : ${BRANCH_NAME}$([ -n "$BRANCH_SELECT_DIR" ] && echo " (${BRANCH_SELECT_DIR} 配下から選択)")"
 log_info "  clone 方式      : $([ "$FULL_CLONE" = "true" ] && echo '全履歴' || echo 'shallow(--depth 1)')"
 log_info "  保存先ディレクトリ: ${OUTPUT_DIR}"
 log_info "  出力 ZIP        : ${ZIP_PATH}"
