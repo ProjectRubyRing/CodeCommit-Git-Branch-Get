@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# codecommit-branch-zip.sh
+# codecommit_branch_zip.sh
 # ========================
 # AWS CodeCommit の「指定したリポジトリ・指定したブランチ」の内容を取得し、
 # そのブランチに登録されている全ファイルを ZIP に固めて、指定ディレクトリへ保存する。
@@ -11,8 +11,8 @@
 #   .git ディレクトリなどの作業用ファイルは含まれない。
 #
 # 使い方:
-#   ./codecommit-branch-zip.sh -r <リポジトリ名> -b <ブランチ名> -o <保存先ディレクトリ> [オプション]
-#   ./codecommit-branch-zip.sh -r <リポジトリ名> -B <ディレクトリ> -o <保存先ディレクトリ> [オプション]
+#   ./codecommit_branch_zip.sh -r <リポジトリ名> -b <ブランチ名> -o <保存先ディレクトリ> [オプション]
+#   ./codecommit_branch_zip.sh -r <リポジトリ名> -B <ディレクトリ> -o <保存先ディレクトリ> [オプション]
 #
 # オプション:
 #   -r, --repository <name>   対象の CodeCommit リポジトリ名(必須。--repo-url 指定時は任意)。
@@ -49,13 +49,13 @@
 #     本スクリプトは clone 時に aws codecommit credential-helper を指定して認証する。
 #
 # 例:
-#   ./codecommit-branch-zip.sh -r my-repo -b main -o ./out --region ap-northeast-1
-#   ./codecommit-branch-zip.sh -r my-repo -b develop -o /tmp/zips --zip-name develop.zip
+#   ./codecommit_branch_zip.sh -r my-repo -b main -o ./out --region ap-northeast-1
+#   ./codecommit_branch_zip.sh -r my-repo -b develop -o /tmp/zips --zip-name develop.zip
 #   # ~/work 配下のローカルリポジトリのチェックアウト中ブランチから対話選択して ZIP 化
-#   ./codecommit-branch-zip.sh -r my-repo -B ~/work -o ./out --region ap-northeast-1
-#   ./codecommit-branch-zip.sh -r my-repo -b main -o ./out \
+#   ./codecommit_branch_zip.sh -r my-repo -B ~/work -o ./out --region ap-northeast-1
+#   ./codecommit_branch_zip.sh -r my-repo -b main -o ./out \
 #       --auto-assume-role --assume-role-script /opt/team/assume_role.sh
-#   ./codecommit-branch-zip.sh -r my-repo -b main -o ./out --dry-run
+#   ./codecommit_branch_zip.sh -r my-repo -b main -o ./out --dry-run
 #
 set -uo pipefail
 
@@ -65,8 +65,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 # ---- 前提コマンドの確認 ----------------------------------------------------
-require_cmd aws "AWS CLI をインストールしてください"
-require_cmd git "git をインストールしてください"
+require_command aws "AWS CLI をインストールしてください"
+require_command git "git をインストールしてください"
 
 # ---- オプション解析 --------------------------------------------------------
 REPOSITORY_NAME="${CODECOMMIT_REPOSITORY:-}"

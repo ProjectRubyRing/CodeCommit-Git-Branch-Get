@@ -16,7 +16,7 @@
 #   log_error  <msg...>          : エラーログ（stderr, 赤）
 #   log_debug  <msg...>          : デバッグログ（DEBUG=true のときだけ stderr に出力）
 #   die        <msg...>          : エラーを出して exit 1
-#   require_cmd <name> [hint]    : コマンドが PATH に無ければ die
+#   require_command <name> [hint]    : コマンドが PATH に無ければ die
 #   confirm    <prompt>          : y/N の対話確認（yes なら 0、no なら 1 を返す）
 #   require_aws_auth             : 事前に AWS 認証(aws login --remote)済みか確認。
 #                                  未認証なら警告して exit 1
@@ -101,10 +101,10 @@ die() {
 
 # ---------------------------------------------------------------------------
 # 前提コマンドの存在確認
-#   require_cmd git "git をインストールしてください"
+#   require_command git "git をインストールしてください"
 # ---------------------------------------------------------------------------
-require_cmd() {
-  local cmd="${1:?require_cmd: コマンド名が必要です}"
+require_command() {
+  local cmd="${1:?require_command: コマンド名が必要です}"
   local hint="${2:-}"
   if ! command -v "${cmd}" >/dev/null 2>&1; then
     if [[ -n "${hint}" ]]; then
@@ -160,7 +160,7 @@ __AWS_ACCESS_DENIED_RE='AccessDenied|AccessDeniedException|not authorized to per
 # 判定には `aws sts get-caller-identity`（読み取りのみ・副作用なし）を使用する。
 # ---------------------------------------------------------------------------
 require_aws_auth() {
-  require_cmd aws "AWS CLI をインストールしてください"
+  require_command aws "AWS CLI をインストールしてください"
 
   log_debug "AWS 認証状態を確認します (aws sts get-caller-identity)"
 
@@ -223,8 +223,8 @@ select_branch_from_dir() {
   local max_depth="${2:-3}"
 
   [ -d "${base}" ] || die "ブランチ選択用のディレクトリが見つかりません: ${base}"
-  require_cmd git "git をインストールしてください"
-  require_cmd find
+  require_command git "git をインストールしてください"
+  require_command find
 
   # --- git リポジトリの探索 -------------------------------------------------
   #   .git を見つけたら -prune でその配下(リポジトリ内部)へは降りない。
@@ -328,7 +328,7 @@ require_codecommit_access() {
   local auto_assume="${2:-false}"
   local script_path="${3:-${ASSUME_ROLE_SCRIPT:-}}"
 
-  require_cmd aws "AWS CLI をインストールしてください"
+  require_command aws "AWS CLI をインストールしてください"
 
   if _codecommit_access_ok "${repo}"; then
     log_info "CodeCommit への操作権限を確認しました (repo: ${repo})"

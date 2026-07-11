@@ -2,7 +2,7 @@
 #
 # ccdiff.sh
 # =========
-# codecommit-branch-diff.sh の入力を簡略化するヘルパーシェル。
+# codecommit_branch_diff.sh の入力を簡略化するヘルパーシェル。
 # リポジトリ名・リージョン・スイッチロール設定などの毎回同じ指定を
 # 設定ファイル(cc-helper.conf)へ寄せることで、通常は
 #
@@ -25,7 +25,7 @@
 #                            表示して終了する(設定確認・デバッグ用)。
 #   -h, --help               このヘルプを表示する。
 #
-# 上記以外の引数はすべて、そのままの順序で codecommit-branch-diff.sh へ
+# 上記以外の引数はすべて、そのままの順序で codecommit_branch_diff.sh へ
 # 引き渡される(-N 3 / --stat-only / --from ... --to ... など全オプション使用可)。
 # 同じオプションを設定ファイルと両方で指定した場合はコマンドライン側が優先される。
 #
@@ -42,7 +42,7 @@ HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=cc-helper-lib.sh
 source "${HELPER_DIR}/cc-helper-lib.sh"
 
-MAIN_SCRIPT_NAME="codecommit-branch-diff.sh"
+MAIN_SCRIPT_NAME="codecommit_branch_diff.sh"
 
 usage() {
   awk 'NR>1{ if(/^#/){sub(/^# ?/,"");print}else{exit} }' "${BASH_SOURCE[0]}"

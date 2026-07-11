@@ -2,7 +2,7 @@
 #
 # cczip.sh
 # ========
-# codecommit-branch-zip.sh の入力を簡略化するヘルパーシェル。
+# codecommit_branch_zip.sh の入力を簡略化するヘルパーシェル。
 # リポジトリ名・リージョン・保存先・スイッチロール設定などの毎回同じ指定を
 # 設定ファイル(cc-helper.conf)へ寄せることで、通常は
 #
@@ -28,7 +28,7 @@
 #                            表示して終了する(設定確認・デバッグ用)。
 #   -h, --help               このヘルプを表示する。
 #
-# 上記以外の引数はすべて、そのままの順序で codecommit-branch-zip.sh へ
+# 上記以外の引数はすべて、そのままの順序で codecommit_branch_zip.sh へ
 # 引き渡される(--zip-name / --full-clone / -n など全オプション使用可)。
 # 同じオプションを設定ファイルと両方で指定した場合はコマンドライン側が優先される。
 #
@@ -45,7 +45,7 @@ HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=cc-helper-lib.sh
 source "${HELPER_DIR}/cc-helper-lib.sh"
 
-MAIN_SCRIPT_NAME="codecommit-branch-zip.sh"
+MAIN_SCRIPT_NAME="codecommit_branch_zip.sh"
 
 usage() {
   awk 'NR>1{ if(/^#/){sub(/^# ?/,"");print}else{exit} }' "${BASH_SOURCE[0]}"

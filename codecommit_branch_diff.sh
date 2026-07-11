@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# codecommit-branch-diff.sh
+# codecommit_branch_diff.sh
 # =========================
 # AWS CodeCommit の「指定したリポジトリ・指定したブランチ」のコミット変更の差分を、
 # 極めて詳しく・わかりやすく表示する。
@@ -21,8 +21,8 @@
 #                            (全体サマリ + 全体差分 + 区間内の各コミット詳細)
 #
 # 使い方:
-#   ./codecommit-branch-diff.sh -r <リポジトリ名> -b <ブランチ名> [オプション]
-#   ./codecommit-branch-diff.sh -r <リポジトリ名> -B <ディレクトリ> [オプション]
+#   ./codecommit_branch_diff.sh -r <リポジトリ名> -b <ブランチ名> [オプション]
+#   ./codecommit_branch_diff.sh -r <リポジトリ名> -B <ディレクトリ> [オプション]
 #
 # オプション:
 #   -r, --repository <name>   対象の CodeCommit リポジトリ名(必須。--repo-url 指定時は任意)。
@@ -67,23 +67,23 @@
 #
 # 例:
 #   # 直近10コミットの差分を詳細表示
-#   ./codecommit-branch-diff.sh -r my-repo -b main --region ap-northeast-1
+#   ./codecommit_branch_diff.sh -r my-repo -b main --region ap-northeast-1
 #
 #   # 直近3コミットのみ・文脈行数10行で表示
-#   ./codecommit-branch-diff.sh -r my-repo -b develop -N 3 --context 10
+#   ./codecommit_branch_diff.sh -r my-repo -b develop -N 3 --context 10
 #
 #   # ~/work 配下のローカルリポジトリのチェックアウト中ブランチから対話選択して表示
-#   ./codecommit-branch-diff.sh -r my-repo -B ~/work --region ap-northeast-1
+#   ./codecommit_branch_diff.sh -r my-repo -B ~/work --region ap-northeast-1
 #
 #   # 特定コミット1件の差分を表示
-#   ./codecommit-branch-diff.sh -r my-repo -b main -c 1a2b3c4d
+#   ./codecommit_branch_diff.sh -r my-repo -b main -c 1a2b3c4d
 #
 #   # リリースタグ間の差分(全体+コミット別)を表示してファイル保存
-#   ./codecommit-branch-diff.sh -r my-repo -b main \
+#   ./codecommit_branch_diff.sh -r my-repo -b main \
 #       --from v1.0.0 --to v1.1.0 --output-file ./diff_v1.0.0_v1.1.0.txt
 #
 #   # 権限が無い場合は別チーム提供シェルで自動スイッチロール
-#   ./codecommit-branch-diff.sh -r my-repo -b main \
+#   ./codecommit_branch_diff.sh -r my-repo -b main \
 #       --auto-assume-role --assume-role-script /opt/team/assume_role.sh
 #
 set -uo pipefail
@@ -94,8 +94,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 # ---- 前提コマンドの確認 ----------------------------------------------------
-require_cmd aws "AWS CLI をインストールしてください"
-require_cmd git "git をインストールしてください (RHEL9: sudo dnf install git)"
+require_command aws "AWS CLI をインストールしてください"
+require_command git "git をインストールしてください (RHEL9: sudo dnf install git)"
 
 # ---- オプション解析 --------------------------------------------------------
 REPOSITORY_NAME="${CODECOMMIT_REPOSITORY:-}"
